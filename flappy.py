@@ -319,7 +319,8 @@ def init_teams(args_ips, service_name):
     if flag_ids:
         for ip, team in teams.items():
             try:
-                team.flag_ids = flag_ids[team]
+                team_id = ip.split('.')[2]
+                team.flag_ids = flag_ids[team_id]
             except KeyError:
                 logging.warning(f'Unable to find ip {ip} among the flag ids returned by the API')
         logger.debug('Updated the dictionary of targets: {}'.format(teams))
