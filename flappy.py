@@ -30,18 +30,15 @@ import regex as re
 # ================================================================================
 
 # your team token for flag submission/gameserver interaction, if needed
-TEAM_TOKEN = 'h4ck7h3pl4n37'
 # compiled regular expression matching a flag
-FLAG_PATTERN = re.compile(b'FLAG\{[a-zA-Z0-9]{32}\}')
+FLAG_PATTERN = re.compile(b'RABA_[A-Za-z0-9+/]{32}')
 # duration of a round, in seconds. Divide it by 2 to attack with higher frequency!
-ROUND_DURATION = 90
+ROUND_DURATION = 120
 # endpoint serving the JSON with flag ids, use the IP address in case of DNS issues
-FLAGID_URL = 'http://10.0.0.1/api/flag_id'
-# flag submission URL for HTTP-based systems
-FLAG_SUBMISSION_URL = 'http://10.0.0.1/submit'
+FLAGID_URL = 'https://ad.rabac.tf/competition/teams.json'
 # flag submission server host and port for socket-based systems
-FLAG_SUBMISSION_HOST = '10.0.13.37'
-FLAG_SUBMISSION_PORT = 1337
+FLAG_SUBMISSION_HOST = '10.98.0.1'
+FLAG_SUBMISSION_PORT = 31111
 # maximum timeout for interactions with the gameserver
 BASE_TIMEOUT = 5
 # logging format
@@ -322,7 +319,7 @@ def init_teams(args_ips, service_name):
     if flag_ids:
         for ip, team in teams.items():
             try:
-                team.flag_ids = flag_ids[ip]
+                team.flag_ids = flag_ids[team]
             except KeyError:
                 logging.warning(f'Unable to find ip {ip} among the flag ids returned by the API')
         logger.debug('Updated the dictionary of targets: {}'.format(teams))
@@ -458,53 +455,13 @@ def get_flagids_service(service):
         logger.warning(f'Timeout while fetching {endpoint}')
 
     try:
-        return flagids[service]
+        return flagids["flag_ids"][service]
     except KeyError:
         logger.warning(f'No flag ids for service {service}')
         return None
 
 
-def _get_flagids_service(service):
-    """Get the flag_ids of all teams for a given service (example from Bambi CTF #7)."""
-
-    flagids = dict()
-    endpoint = FLAGID_URL
-    try:
-        r = requests.get(endpoint, timeout=BASE_TIMEOUT)
-        if r.status_code == 200:
-            for team_ip, data in r.json()["services"][service].items():
-                x = [(int(k),v) for k,v in data.items()]
-                p = sorted(x)[-1][1]
-                flagids.setdefault(team_ip, []).extend(
-                    [item for sl in p.values() for item in sl]
-                )
-        elif r.status_code == 404:
-            logger.warning(f'Failed fetching {endpoint}: {r.text}')
-        else:
-            logger.warning(f'Unknown return code {r.status_code} while fetching {endpoint}')
-    except requests.exceptions.Timeout as e:
-        logger.warning(f'Timeout while fetching {endpoint}')
-
-
 def submit_flags(flags):
-    """HTTP-based flag submission."""
-
-    endpoint = FLAG_SUBMISSION_URL
-    for flag in flags:
-        try:
-            r = requests.post(endpoint, data={'team_token': TEAM_TOKEN, 'flag': flag}, timeout=BASE_TIMEOUT)
-            if r.status_code == 200:
-                if 'Flag accepted' in r.text:
-                    logger.info(f'Flag {flag} accepted!')
-                else:
-                    logger.warning(f'Flag {flag} failed.')
-            else:
-                logger.warning(f'Invalid HTTP return code {r.status_code} while submitting {flag} to {endpoint}')
-        except requests.exceptions.Timeout as e:
-            logger.warning(f'Timeout while submitting {flag} to {endpoint}')
-
-
-def _submit_flags(flags):
     """Socket-based flag submission (example from Bambi CTF #7)."""
 
     try:
